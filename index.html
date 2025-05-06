@@ -1,100 +1,195 @@
-<!-- index.html -->
 <!DOCTYPE html>
-<html lang="ro" x-data="shop()" x-init="init()">
+<html lang="ro" x-data="app()" x-init="init()">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Magazin Bisericesc</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js -->
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- jsPDF & AutoTable for PDF invoices -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
   <style>
-    .text-gold{color:#b08c47} .bg-gold{background-color:#b08c47}
+    .text-gold{color:#b08c47}
+    .bg-gold{background-color:#b08c47}
+    /* Hover effect pe carduri produse */
+    .prod-card:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-  <!-- HEADER -->
-  <header class="bg-white shadow fixed top-0 w-full z-20">
+  <!-- HEADER / NAV -->
+  <header class="bg-white shadow fixed top-0 w-full z-30">
     <div class="container mx-auto flex justify-between items-center p-4">
-      <h1 class="text-2xl font-serif">Magazin Bisericesc</h1>
-      <div class="flex items-center space-x-4">
-        <input x-model="search" @input="filterAll()" type="text" placeholder="Caută..."
-               class="border rounded-full py-1 px-4 w-48 focus:outline-none"/>
+      <h1 class="text-2xl font-serif cursor-pointer" @click="navigate('home')">Magazin Bisericesc</h1>
+      <nav class="space-x-4">
+        <button @click="navigate('home')" :class="page==='home'?'text-gold':''">Acasă</button>
+        <button @click="navigate('products')" :class="page==='products'?'text-gold':''">Produse</button>
+        <button @click="navigate('about')" :class="page==='about'?'text-gold':''">Despre noi</button>
+        <button @click="navigate('terms')" :class="page==='terms'?'text-gold':''">Termeni</button>
         <button @click="openCart=true" class="relative">
-          <svg class="w-6 h-6 text-gray-600 hover:text-gold" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M3 3h18v4H3V3zM5 9h14v12H5V9zm2 2v8h10v-8H7z"/>
-          </svg>
-          <span x-text="cartCount" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center"></span>
+          🛒<span class="absolute -top-2 -right-3 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center" x-text="cartCount"></span>
         </button>
-      </div>
+        <button @click="navigate('admin')" class="ml-4 px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">Admin</button>
+      </nav>
     </div>
   </header>
 
-  <!-- MAIN CONTENT -->
   <main class="pt-20 container mx-auto p-4">
 
-    <!-- CAROUSEL -->
-    <div class="w-full h-48 bg-gray-200 rounded-lg mb-8 flex items-center justify-center">
-      <span class="text-xl text-gray-500">[Promo Paște: –10% la icoane]</span>
-    </div>
-
-    <!-- CATEGORII -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-      <template x-for="c in categories" :key="c">
-        <button
-          @click="activeCat=c; filterAll()"
-          :class="{'bg-gold text-white': activeCat===c,'bg-white':activeCat!==c}"
-          class="rounded-lg shadow p-4 text-center hover:shadow-lg transition"
-        >
-          <div class="h-12 flex items-center justify-center mb-2 text-3xl">🙏</div>
-          <div x-text="c"></div>
-        </button>
-      </template>
-    </div>
+    <!-- ACASĂ -->
+    <section x-show="page==='home'">
+      <div class="w-full h-48 bg-gray-200 rounded-lg mb-8 flex items-center justify-center">
+        <span class="text-xl text-gray-500">[Promo Paște: –10% la icoane]</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <template x-for="c in categories" :key="c">
+          <button
+            @click="activeCat=c; navigate('products'); filterAll()"
+            class="rounded-lg shadow p-4 text-center hover:shadow-lg transition"
+          >
+            <div class="h-12 flex items-center justify-center mb-2 text-3xl">🙏</div>
+            <div x-text="c"></div>
+          </button>
+        </template>
+      </div>
+    </section>
 
     <!-- PRODUSE -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <template x-for="p in filtered" :key="p.id">
-        <div class="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
-          <img :src="p.image" class="h-40 w-full object-cover" alt=""/>
-          <div class="p-4 flex-grow flex flex-col">
-            <h4 class="font-semibold mb-1" x-text="p.name"></h4>
-            <p class="text-sm text-gray-500 mb-2" x-text="'Stoc: '+p.stock"></p>
-            <p class="text-gold font-bold mb-4" x-text="p.price+' Lei'"></p>
-            <div class="mt-auto flex space-x-2">
-              <button
-                @click="showModal(p)"
-                class="py-1 px-3 rounded-full border hover:bg-gray-100"
-              >Detalii</button>
-              <button
-                @click="addToCart(p)"
-                class="py-1 px-3 rounded-full bg-gold text-gray-800 font-semibold hover:bg-yellow-400"
-              >Adaugă</button>
+    <section x-show="page==='products'">
+      <div class="flex justify-between items-center mb-4">
+        <input x-model="search" @input="filterAll()"
+               type="text" placeholder="Caută produse..."
+               class="border rounded-full py-1 px-4 w-64 focus:outline-none"/>
+        <select x-model="activeCat" @change="filterAll()"
+                class="border rounded py-1 px-2">
+          <option value="Toate">Toate categoriile</option>
+          <template x-for="c in categories" :key="c"><option x-text="c"/></template>
+        </select>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <template x-for="p in filtered" :key="p.id">
+          <div class="bg-white rounded-lg shadow-md overflow-hidden flex flex-col prod-card transition" >
+            <img :src="p.image" class="h-40 w-full object-cover" alt=""/>
+            <div class="p-4 flex-grow flex flex-col">
+              <h4 class="font-semibold mb-1" x-text="p.name"></h4>
+              <p class="text-sm text-gray-500 mb-1" x-text="'Stoc: '+p.stock"></p>
+              <p class="text-gold font-bold mb-4" x-text="p.price+' Lei'"></p>
+              <div class="mt-auto flex space-x-2">
+                <button @click="showModal(p)" class="py-1 px-3 rounded-full border hover:bg-gray-100">Detalii</button>
+                <button @click="addToCart(p)" class="py-1 px-3 rounded-full bg-gold text-gray-800 font-semibold hover:bg-yellow-400">Adaugă</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- DESPRE NOI -->
+    <section x-show="page==='about'" class="prose max-w-none">
+      <h2>Despre noi</h2>
+      <p>Suntem magazinul oficial al comunității ortodoxe, oferind icoane, cărți și obiecte liturgice de calitate.</p>
+      <ul>
+        <li>Produs 100% românesc</li>
+        <li>Livrare rapidă</li>
+        <li>Suport clienți dedicat</li>
+      </ul>
+    </section>
+
+    <!-- TERMENI ȘI CONDIȚII -->
+    <section x-show="page==='terms'" class="prose max-w-none">
+      <h2>Termeni și condiții</h2>
+      <p>Prin utilizarea acestui site, accepți termenii și condițiile noastre...</p>
+      <ol>
+        <li>Politica de returnare în 14 zile</li>
+        <li>Garanție produs 2 ani</li>
+        <li>Confidențialitatea datelor</li>
+      </ol>
+    </section>
+
+    <!-- ADMIN -->
+    <section x-show="page==='admin'">
+      <div class="flex space-x-4">
+        <!-- Sidebar admin -->
+        <aside class="w-60 bg-white shadow p-4">
+          <h2 class="text-xl font-semibold mb-4">Panou Admin</h2>
+          <button @click="view='products'" :class="view==='products'?'bg-gold text-white':''" class="w-full text-left p-2 rounded hover:bg-gray-100">Produse</button>
+          <button @click="view='orders'"   :class="view==='orders'  ?'bg-gold text-white':''" class="w-full text-left p-2 rounded hover:bg-gray-100">Comenzi</button>
+        </aside>
+        <!-- Conținut admin -->
+        <div class="flex-grow">
+          <!-- Gestiune produse -->
+          <div x-show="view==='products'">
+            <h2 class="text-2xl font-semibold mb-4">Produse</h2>
+            <form @submit.prevent="saveProduct()" class="mb-6 bg-white p-4 rounded shadow grid grid-cols-2 gap-4">
+              <input x-model="form.name" placeholder="Nume" class="border p-2 rounded"/>
+              <input x-model.number="form.price" type="number" placeholder="Preț" class="border p-2 rounded"/>
+              <input x-model.number="form.stock" type="number" placeholder="Stoc" class="border p-2 rounded"/>
+              <input x-model="form.image" placeholder="URL imagine" class="border p-2 rounded"/>
+              <textarea x-model="form.description" placeholder="Descriere" class="border p-2 rounded col-span-2"></textarea>
+              <button type="submit" class="col-span-2 py-2 bg-gold text-white rounded">Salvează</button>
+            </form>
+            <table class="min-w-full bg-white rounded shadow">
+              <thead class="bg-gray-200"><tr>
+                <th class="p-2">ID</th><th class="p-2">Nume</th><th class="p-2">Preț</th><th class="p-2">Stoc</th><th class="p-2">Acțiuni</th>
+              </tr></thead>
+              <tbody>
+                <template x-for="p in products" :key="p.id">
+                  <tr class="border-b">
+                    <td class="p-2" x-text="p.id"></td>
+                    <td class="p-2"><input x-model="p.name" class="border p-1 rounded w-full"/></td>
+                    <td class="p-2"><input x-model.number="p.price" type="number" class="border p-1 rounded w-full"/></td>
+                    <td class="p-2"><input x-model.number="p.stock" type="number" class="border p-1 rounded w-full"/></td>
+                    <td class="p-2 space-x-1">
+                      <button @click="updateProduct(p)" class="px-2 bg-green-500 text-white rounded">Ok</button>
+                      <button @click="deleteProduct(p.id)"  class="px-2 bg-red-500 text-white rounded">✕</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <!-- Gestiune comenzi -->
+          <div x-show="view==='orders'">
+            <h2 class="text-2xl font-semibold mb-4">Comenzi</h2>
+            <template x-if="orders.length===0"><p>Nu există comenzi.</p></template>
+            <div class="space-y-4">
+              <template x-for="o in orders" :key="o.id">
+                <div class="bg-white p-4 rounded shadow">
+                  <div class="flex justify-between items-center mb-2">
+                    <div><strong x-text="o.user"></strong> — <span x-text="o.date"></span></div>
+                    <div>
+                      <button @click="generateInvoice(o)" class="py-1 px-3 bg-gold text-gray-800 rounded hover:bg-yellow-400">
+                        Factură
+                      </button>
+                      <span class="font-bold ml-4" x-text="totalOrder(o)+' Lei'"></span>
+                    </div>
+                  </div>
+                  <ul class="list-disc list-inside">
+                    <template x-for="it in o.items" :key="it.id">
+                      <li x-text="it.name+' ×'+it.qty+' ('+it.price+' Lei)'" ></li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
             </div>
           </div>
         </div>
-      </template>
-    </div>
+      </div>
+    </section>
 
   </main>
 
-  <!-- FOOTER -->
-  <footer class="bg-gray-800 text-gray-200 py-6 mt-12">
-    <div class="container mx-auto text-center space-y-1">
-      <a href="about.html" class="hover:underline">Despre noi</a> •
-      <a href="terms.html" class="hover:underline">Termeni și condiții</a>
-      <p>© 2025 Magazin Bisericesc</p>
-    </div>
-  </footer>
-
   <!-- MODAL DETALII PRODUS -->
-  <div x-show="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
+  <div x-show="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
     <div @click.away="modalOpen=false" class="bg-white rounded-lg w-11/12 md:w-1/2 p-6">
       <div class="flex">
         <img :src="modalProd.image" class="w-1/3 rounded" alt=""/>
         <div class="ml-4 flex-grow">
           <h2 class="text-xl font-semibold mb-2" x-text="modalProd.name"></h2>
-          <p class="text-gray-600 mb-2" x-text="'Stoc: '+modalProd.stock"></p>
+          <p class="text-gray-600 mb-1" x-text="'Stoc: '+modalProd.stock"></p>
           <p class="text-gold font-bold mb-4" x-text="modalProd.price+' Lei'"></p>
           <p class="mb-4" x-text="modalProd.description"></p>
           <button @click="addToCart(modalProd); modalOpen=false"
@@ -108,12 +203,10 @@
   </div>
 
   <!-- CART MODAL -->
-  <div x-show="openCart" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
+  <div x-show="openCart" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
     <div @click.away="openCart=false" class="bg-white rounded-lg w-11/12 md:w-1/2 p-6 max-h-full overflow-auto">
       <h2 class="text-2xl font-serif mb-4">Coșul tău</h2>
-      <template x-if="cart.length===0">
-        <p>Coș gol.</p>
-      </template>
+      <template x-if="cart.length===0"><p>Coș gol.</p></template>
       <template x-for="(it,i) in cart" :key="i">
         <div class="flex justify-between items-center border-b py-2">
           <div>
@@ -139,46 +232,101 @@
   </div>
 
   <script>
-    function shop(){
+    async function app() {
       return {
-        search:'', categories:['Toate','Icoane','Cărți','Liturgice','Evenimente'], activeCat:'Toate',
-        products:[], filtered:[], cart:[], modalProd:{}, modalOpen:false, openCart:false,
-        init(){
-          const def=[
-            {id:1,name:'Icoana Maria',price:120,stock:10,description:'Icoană pictată manual.',image:'images/icoane.jpg'},
+        page: 'home',
+        view: 'products',
+        categories: ['Toate','Icoane','Cărți','Liturgice','Evenimente'],
+        activeCat: 'Toate',
+        search: '',
+        products: [],
+        filtered: [],
+        cart: [],
+        orders: [],
+        form: {},
+        modalProd: {},
+        modalOpen: false,
+        openCart: false,
+
+        init() {
+          // date default
+          const defProd = [
+            {id:1,name:'Icoana Maria',price:120,stock:10,description:'Icoană pictată.',image:'images/icoane.jpg'},
             {id:2,name:'Biblia',price:80,stock:5,description:'Biblie ortodoxă.',image:'images/carti.jpg'},
             {id:3,name:'Lumânare',price:5,stock:100,description:'Lumânare de ceară.',image:'images/obiecte.jpg'},
             {id:4,name:'Calendar',price:20,stock:50,description:'Calendar bisericesc.',image:'images/evenimente.jpg'},
           ];
-          this.products=JSON.parse(localStorage.getItem('churchProd'))||def;
-          this.filtered=[...this.products];
-          this.cart=JSON.parse(localStorage.getItem('churchCart'))||[];
+          this.products = JSON.parse(localStorage.getItem('churchProd'))||defProd;
+          this.filtered = [...this.products];
+          this.cart = JSON.parse(localStorage.getItem('churchCart'))||[];
+          this.orders = JSON.parse(localStorage.getItem('churchOrders'))||[];
+          this.form = {id:null,name:'',price:0,stock:0,description:'',image:''};
         },
-        filterAll(){
-          this.filtered=this.products.filter(p=>{
-            const cOK=this.activeCat==='Toate'||p.name.includes(this.activeCat);
-            const tOK=p.name.toLowerCase().includes(this.search.toLowerCase());
-            return cOK&&tOK;
+
+        navigate(p){ this.page = p; },
+
+        filterAll() {
+          this.filtered = this.products.filter(p => {
+            const catOK = this.activeCat==='Toate' || p.name.includes(this.activeCat);
+            const txtOK = p.name.toLowerCase().includes(this.search.toLowerCase());
+            return catOK && txtOK;
           });
         },
-        showModal(p){ this.modalProd=p; this.modalOpen=true; },
+
+        showModal(p){ this.modalProd = {...p}; this.modalOpen = true; },
         addToCart(p){
-          let f=this.cart.find(x=>x.id===p.id);
-          if(f){ if(f.qty<p.stock) f.qty++; }
+          let it = this.cart.find(x=>x.id===p.id);
+          if(it){ if(it.qty < p.stock) it.qty++; }
           else this.cart.push({id:p.id,name:p.name,price:p.price,qty:1});
           this.saveCart();
         },
         removeFromCart(i){ this.cart.splice(i,1); this.saveCart(); },
-        saveCart(){ localStorage.setItem('churchCart',JSON.stringify(this.cart)); },
-        cartCount(){ return this.cart.reduce((s,i)=>s+i.qty,0); },
-        total(){ return this.cart.reduce((s,i)=>s+i.qty,0 * i.price,0); },
+        saveCart(){ localStorage.setItem('churchCart', JSON.stringify(this.cart)); },
+        get cartCount(){ return this.cart.reduce((s,i)=>s+i.qty,0); },
+        total(){ return this.cart.reduce((s,i)=>s+i.qty*i.price,0); },
         checkout(){
-          const user=prompt('Nume:')||'Guest';
-          const ord=JSON.parse(localStorage.getItem('churchOrders')||'[]');
-          ord.push({id:Date.now(),user,date:new Date().toLocaleString(),items:this.cart});
-          localStorage.setItem('churchOrders',JSON.stringify(ord));
-          this.cart=[]; this.saveCart(); this.openCart=false;
-          alert('Comandă finalizată!');
+          const user = prompt('Nume și prenume:')||'Guest';
+          this.orders.push({id:Date.now(),user,date:new Date().toLocaleString(),items:this.cart.map(i=>({...i}))});
+          localStorage.setItem('churchOrders', JSON.stringify(this.orders));
+          this.cart = []; this.saveCart(); this.openCart = false;
+          alert('Comandă înregistrată!');
+        },
+
+        // ADMIN
+        saveProduct(){
+          if(this.form.id){
+            const idx = this.products.findIndex(p=>p.id===this.form.id);
+            this.products.splice(idx,1,{...this.form});
+          } else {
+            this.form.id = Date.now();
+            this.products.push({...this.form});
+          }
+          localStorage.setItem('churchProd', JSON.stringify(this.products));
+          this.form = {id:null,name:'',price:0,stock:0,description:'',image:''};
+          this.filterAll();
+        },
+        updateProduct(p){ localStorage.setItem('churchProd', JSON.stringify(this.products)); this.filterAll(); },
+        deleteProduct(id){
+          this.products = this.products.filter(p=>p.id!==id);
+          localStorage.setItem('churchProd', JSON.stringify(this.products));
+          this.filterAll();
+        },
+        totalOrder(o){ return o.items.reduce((s,i)=>s+i.qty*i.price,0); },
+        async generateInvoice(o){
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          doc.setFontSize(18); doc.text('Furnizor: Magazin Bisericesc',14,20);
+          doc.setFontSize(14); doc.text(`Client: ${o.user}`,14,30);
+          doc.text(`Data: ${o.date}`,14,38);
+          const rows = o.items.map(i=>[i.name, i.qty, i.price, i.qty*i.price]);
+          doc.autoTable({
+            head: [['Produs','Cantitate','Preț u.','Total']],
+            body: rows,
+            startY: 48,
+            theme: 'striped',
+          });
+          doc.text(`Sumă totală: ${this.totalOrder(o)} Lei`,14, doc.lastAutoTable.finalY + 10);
+          doc.save(`Factura_${o.id}.pdf`);
         },
       }
     }
