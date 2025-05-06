@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ro" x-data="shop()" x-init="loadCart()">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Magazin Bisericesc</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    /* custom gold color */
+    .text-gold { color: #b08c47; }
+    .bg-gold { background-color: #b08c47; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Header -->
+  <header class="bg-white shadow-md fixed top-0 w-full z-20">
+    <div class="container mx-auto flex justify-between items-center p-4">
+      <h1 class="text-2xl font-serif">Magazin Bisericesc</h1>
+      <div class="flex items-center space-x-4">
+        <input x-model="search" @input="filterAll()" type="text" placeholder="Caută produse..."
+               class="border rounded-full py-1 px-4 w-48 focus:outline-none"/>
+        <button @click="openCart = true" class="relative">
+          <svg class="w-6 h-6 text-gray-600 hover:text-gold" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 3h18v4H3V3zM5 9h14v12H5V9zm2 2v8h10v-8H7z"/>
+          </svg>
+          <span x-text="cartCount" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="pt-20 container mx-auto p-4">
+
+    <!-- Carousel -->
+    <div class="w-full h-48 bg-gray-200 rounded-lg mb-8 flex items-center justify-center">
+      <span class="text-xl text-gray-500">[Banner Promoțional – Paște: -10% la toate icoanele!]</span>
+    </div>
+
+    <!-- Categorii -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <template x-for="cat in categories" :key="cat">
+        <button
+          @click="activeCat = cat; filterAll()"
+          :class="{'bg-gold text-white': activeCat===cat, 'bg-white': activeCat!==cat}"
+          class="rounded-lg shadow p-4 text-center hover:shadow-lg transition"
+        >
+          <div class="h-16 flex items-center justify-center mb-2 text-3xl">🙏</div>
+          <div x-text="cat"></div>
+        </button>
+      </template>
+    </div>
+
+    <!-- Produse -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <template x-for="prod in filtered" :key="prod.id">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+          <img :src="prod.image" alt="" class="h-40 w-full object-cover"/>
+          <div class="p-4 flex-grow flex flex-col">
+            <h4 class="font-semibold mb-2" x-text="prod.name"></h4>
+            <p class="text-gold font-bold mb-4" x-text="prod.price + ' Lei'"></p>
+            <div class="mt-auto space-x-2">
+              <button
+                @click="addToCart(prod)"
+                class="py-1 px-3 rounded-full bg-gold text-gray-800 font-semibold hover:bg-yellow-400"
+              >Adaugă</button>
+              <button
+                @click="toggleWishlist(prod)"
+                class="py-1 px-3 rounded-full border hover:bg-gray-100"
+                x-text="wishlist.includes(prod.id) ? '❤️' : '🤍'"
+              ></button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-gray-200 py-6 mt-12">
+    <div class="container mx-auto text-center">
+      © 2025 Magazin Bisericesc • Toate drepturile rezervate
+    </div>
+  </footer>
+
+  <!-- Cart Modal -->
+  <div
+    x-show="openCart"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30"
+  >
+    <div @click.away="openCart=false" class="bg-white rounded-lg w-11/12 md:w-1/2 p-6 overflow-auto max-h-full">
+      <h2 class="text-2xl font-serif mb-4">Coșul tău</h2>
+      <template x-if="cart.length === 0">
+        <p>Coș gol.</p>
+      </template>
+      <template x-for="(item, idx) in cart" :key="idx">
+        <div class="flex justify-between items-center border-b py-2">
+          <div>
+            <p class="font-semibold" x-text="item.name"></p>
+            <p class="text-sm text-gray-600">Cantitate:
+              <input type="number" min="1" x-model.number="item.qty" @change="saveCart()" class="w-12 text-center border rounded"/>
+            </p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <p class="font-bold" x-text="(item.price * item.qty) + ' Lei'"></p>
+            <button @click="removeFromCart(idx)" class="text-red-600 hover:underline">Șterge</button>
+          </div>
+        </div>
+      </template>
+      <div class="mt-4">
+        <label class="block mb-1">Cod promoțional:</label>
+        <input x-model="coupon" placeholder="EX: PASTE10" class="border rounded px-2 py-1 w-full"/>
+        <button @click="applyCoupon()" class="mt-2 py-1 px-3 bg-gold text-gray-800 rounded hover:bg-yellow-400">
+          Aplică
+        </button>
+        <p x-show="discount > 0" class="mt-2 text-green-600">Discount: <span x-text="discount + '%'"></span></p>
+      </div>
+      <div class="mt-4 text-right">
+        <p class="text-xl font-bold">Total: <span x-text="totalWithDiscount() + ' Lei'"></span></p>
+        <button class="mt-2 py-2 px-4 bg-gold text-gray-800 rounded-full font-semibold hover:bg-yellow-400">
+          Finalizează comanda
+        </button>
+      </div>
+      <button @click="openCart=false" class="absolute top-4 right-4 text-gray-600 hover:text-gray-900">
+        ✕
+      </button>
+    </div>
+  </div>
+
+  <!-- Alpine.js shop logic -->
+  <script>
+  function shop() {
+    return {
+      search: '',
+      categories: ['Toate','Icoane','Cărți','Obiecte Liturgice','Evenimente'],
+      activeCat: 'Toate',
+      products: [
+        { id:1, name:'Icoana Sfânta Maria', price:120, image:'https://via.placeholder.com/300?text=Icoana+Maria' },
+        { id:2, name:'Biblia Ortodoxă', price:80, image:'https://via.placeholder.com/300?text=Biblia' },
+        { id:3, name:'Lumânare Bisericească', price:5, image:'https://via.placeholder.com/300?text=Lumânare' },
+        { id:4, name:'Calendar Ortodox', price:20, image:'https://via.placeholder.com/300?text=Calendar' },
+        // …mai multe produse
+      ],
+      filtered: [],
+      cart: [],
+      coupon: '',
+      discount: 0,
+      openCart: false,
+
+      init() {
+        this.filtered = this.products;
+      },
+      filterAll() {
+        this.filtered = this.products.filter(p => {
+          const catOK = this.activeCat==='Toate' || p.category===this.activeCat;
+          const txtOK = p.name.toLowerCase().includes(this.search.toLowerCase());
+          return txtOK && catOK;
+        });
+      },
+      addToCart(prod) {
+        let found = this.cart.find(i=>i.id===prod.id);
+        if (found) found.qty++;
+        else this.cart.push({ ...prod, qty:1 });
+        this.saveCart();
+      },
+      removeFromCart(idx) {
+        this.cart.splice(idx,1);
+        this.saveCart();
+      },
+      get cartCount() {
+        return this.cart.reduce((sum,i)=>sum+i.qty,0);
+      },
+      getCart() {
+        return JSON.parse(localStorage.getItem('churchCart')||'[]');
+      },
+      saveCart() {
+        localStorage.setItem('churchCart', JSON.stringify(this.cart));
+      },
+      loadCart() {
+        this.cart = this.getCart();
+      },
+      applyCoupon() {
+        if (this.coupon.trim().toUpperCase()==='PASTE10') this.discount=10;
+        else this.discount=0;
+      },
+      total() {
+        return this.cart.reduce((sum,i)=>sum + i.price*i.qty,0);
+      },
+      totalWithDiscount() {
+        return Math.round(this.total() * (1 - this.discount/100));
+      },
+      wishlist: [],
+      toggleWishlist(prod) {
+        if (this.wishlist.includes(prod.id))
+          this.wishlist = this.wishlist.filter(i=>i!==prod.id);
+        else
+          this.wishlist.push(prod.id);
+      }
+    }
+  }
+  </script>
+
+</body>
+</html>
